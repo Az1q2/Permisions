@@ -46,9 +46,9 @@ def get_file_info(filepath):
             ftype = "Файл"
 
         # Флаги безопасности
-        is_world_writable = bool(mode & stat.S_IWOTH)  # Запись для остальных
-        is_executable = bool(mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))  # Исполнение для кого-либо
-        is_777 = (stat.S_IMODE(mode) == 0o777)  # Полные права для всех
+        is_world_writable = bool(mode & stat.S_IWOTH)
+        is_executable = bool(mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+        is_777 = (stat.S_IMODE(mode) == 0o777)
 
         return {
             "path": filepath,
@@ -60,13 +60,15 @@ def get_file_info(filepath):
             "is_world_writable": is_world_writable,
             "is_executable": is_executable,
             "is_777": is_777,
-            "is_unsafe": is_777 or is_world_writable  # Потенциально небезопасный
+            "is_unsafe": is_777 or is_world_writable
         }
     except PermissionError:
-        print(f"[ПРЕДУПРЕЖДЕНИЕ] Нет прав для доступа к: {filepath}", file=sys.stderr)
+        # ИСПРАВЛЕНО: убрана f-строка
+        print("[ПРЕДУПРЕЖДЕНИЕ] Нет прав для доступа к: {}".format(filepath), file=sys.stderr)
         return None
     except OSError as e:
-        print(f"[ОШИБКА] Не удалось получить инфо о {filepath}: {e}", file=sys.stderr)
+        # ИСПРАВЛЕНО: убрана f-строка
+        print("[ОШИБКА] Не удалось получить инфо о {}: {}".format(filepath, e), file=sys.stderr)
         return None
 
 
@@ -76,22 +78,23 @@ def scan_directory(path):
     """
     results = []
     if not os.path.exists(path):
-        print(f"[ОШИБКА] Путь не существует: {path}", file=sys.stderr)
+        # ИСПРАВЛЕНО
+        print("[ОШИБКА] Путь не существует: {}".format(path), file=sys.stderr)
         sys.exit(1)
 
     if not os.path.isdir(path):
-        print(f"[ОШИБКА] Указанный путь не является каталогом: {path}", file=sys.stderr)
+        # ИСПРАВЛЕНО
+        print("[ОШИБКА] Указанный путь не является каталогом: {}".format(path), file=sys.stderr)
         sys.exit(1)
 
-    print(f"Сканирование каталога {path}...", file=sys.stderr)
+    # ИСПРАВЛЕНО
+    print("Сканирование каталога {}...".format(path), file=sys.stderr)
     for root, dirs, files in os.walk(path):
-        # Обработка файлов
         for name in files:
             filepath = os.path.join(root, name)
             info = get_file_info(filepath)
             if info:
                 results.append(info)
-        # Обработка подкаталогов
         for name in dirs:
             filepath = os.path.join(root, name)
             info = get_file_info(filepath)
@@ -137,10 +140,10 @@ def export_report(data, export_path):
 
         elif ext == '.txt':
             with open(export_path, 'w', encoding='utf-8') as f:
-                # Заголовок
-                f.write(f"Отчет о правах доступа. Сформирован: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                # ИСПРАВЛЕНО
+                f.write(
+                    "Отчет о правах доступа. Сформирован: {}\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
                 f.write("=" * 100 + "\n")
-                # Форматированный вывод
                 fmt = "{:<10} {:<8} {:<15} {:<15} {:<50} {:<10}\n"
                 f.write(fmt.format("Права", "8-ричн.", "Владелец", "Группа", "Путь", "Статус"))
                 f.write("-" * 100 + "\n")
@@ -161,14 +164,17 @@ def export_report(data, export_path):
                         status
                     ))
         else:
-            print(f"[ОШИБКА] Неподдерживаемый формат экспорта: {ext}. Используйте .txt, .csv или .json",
+            # ИСПРАВЛЕНО
+            print("[ОШИБКА] Неподдерживаемый формат экспорта: {}. Используйте .txt, .csv или .json".format(ext),
                   file=sys.stderr)
             sys.exit(1)
 
-        print(f"[ИНФО] Отчет успешно сохранен в: {export_path}", file=sys.stderr)
+        # ИСПРАВЛЕНО
+        print("[ИНФО] Отчет успешно сохранен в: {}".format(export_path), file=sys.stderr)
 
     except IOError as e:
-        print(f"[ОШИБКА] Не удалось записать файл отчета: {e}", file=sys.stderr)
+        # ИСПРАВЛЕНО
+        print("[ОШИБКА] Не удалось записать файл отчета: {}".format(e), file=sys.stderr)
         sys.exit(1)
 
 
@@ -204,10 +210,9 @@ def print_console(data):
 
 
 def main():
-    # Настройка парсера аргументов
     parser = argparse.ArgumentParser(
         description="Утилита анализа прав доступа к файлам (Astra Linux). Выявляет потенциально небезопасные объекты.",
-        epilog="Пример: ./perm-check.py --path /opt/project --world-writable --export report.csv"
+        epilog="Пример: ./perm-check --path /opt/project --world-writable --export report.csv"
     )
     parser.add_argument('--path', type=str, default='.',
                         help='Путь к каталогу для сканирования (по умолчанию: текущий каталог)')
@@ -220,13 +225,9 @@ def main():
 
     args = parser.parse_args()
 
-    # Сканирование
     results = scan_directory(args.path)
-
-    # Фильтрация
     filtered = filter_results(results, args.world_writable, args.executable)
 
-    # Вывод или экспорт
     if args.export:
         export_report(filtered, args.export)
     else:
